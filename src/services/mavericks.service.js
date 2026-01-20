@@ -22,7 +22,7 @@ async function fetchMavericks({ start_date, end_date } = {}) {
       "Cache-Control": "no-store",
       Pragma: "no-cache",
     },
-    timeout: 30000,
+    timeout: 120000,
   });
 
   // ✅ support multiple possible response shapes
