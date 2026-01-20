@@ -1,3 +1,4 @@
+// backend/src/services/mavericks.service.js
 const axios = require("axios");
 const { API_URL, X_TEAM_KEY, FE_SALES_FIELD } = require("../config/env");
 const { ALLOWED_FE_TEAMS } = require("../config/constants");
@@ -6,9 +7,36 @@ const { normalize } = require("../utils/math.utils");
 if (!API_URL) throw new Error("Missing API_URL in .env");
 if (!X_TEAM_KEY) throw new Error("Missing X_TEAM_KEY in .env");
 
+/* =========================
+   Date helpers
+========================= */
+function toISODate(d) {
+  // expects Date
+  return d.toISOString().slice(0, 10);
+}
+
+function parseISODate(s) {
+  // expects YYYY-MM-DD
+  const d = new Date(`${s}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) throw new Error(`Invalid date: ${s}`);
+  return d;
+}
+
+function addDays(dateObj, n) {
+  const d = new Date(dateObj);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d;
+}
+
+function clampEnd(chunkEnd, end) {
+  return chunkEnd.getTime() > end.getTime() ? end : chunkEnd;
+}
+
+/* =========================
+   Single call to upstream
+========================= */
 async function fetchMavericks({ start_date, end_date } = {}) {
   if (!start_date) {
-    // if you want, return cached/all, but safest is to throw clear error
     throw new Error("fetchMavericks: start_date is required");
   }
 
@@ -35,12 +63,54 @@ async function fetchMavericks({ start_date, end_date } = {}) {
   return [];
 }
 
+/* =========================
+   Chunked range fetch
+   (avoids Render 502/timeouts)
+========================= */
+async function fetchMavericksRange({ start_date, end_date, chunkDays = 4 } = {}) {
+  if (!start_date) throw new Error("fetchMavericksRange: start_date is required");
 
+  const start = parseISODate(start_date);
+  const end = parseISODate(end_date || start_date);
+
+  if (end.getTime() < start.getTime()) {
+    throw new Error("fetchMavericksRange: end_date cannot be before start_date");
+  }
+
+  // safety: avoid crazy range sizes on free tier
+  // (you can increase if you want, but keep some limit)
+  const maxDays = 60;
+  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  if (diffDays > maxDays) {
+    throw new Error(`fetchMavericksRange: range too large (${diffDays} days). Max is ${maxDays} days.`);
+  }
+
+  let all = [];
+
+  // iterate inclusive
+  for (let d = new Date(start); d.getTime() <= end.getTime(); d = addDays(d, chunkDays)) {
+    const chunkStart = new Date(d);
+    const chunkEnd = clampEnd(addDays(chunkStart, chunkDays - 1), end);
+
+    const rows = await fetchMavericks({
+      start_date: toISODate(chunkStart),
+      end_date: toISODate(chunkEnd),
+    });
+
+    all = all.concat(rows);
+  }
+
+  return all;
+}
+
+/* =========================
+   FE helpers
+========================= */
 function filterByFETeam(records, teamQuery) {
   const allowed = new Set(ALLOWED_FE_TEAMS.map(normalize));
   const q = teamQuery ? normalize(teamQuery) : null;
 
-  return records.filter((r) => {
+  return (records || []).filter((r) => {
     const teamVal = r?.[FE_SALES_FIELD];
     const teamN = normalize(teamVal);
 
@@ -53,11 +123,16 @@ function filterByFETeam(records, teamQuery) {
 
 function teamBreakdown(records) {
   const counts = {};
-  for (const r of records) {
+  for (const r of records || []) {
     const t = String(r?.[FE_SALES_FIELD] || "Unknown").trim();
     counts[t] = (counts[t] || 0) + 1;
   }
   return counts;
 }
 
-module.exports = { fetchMavericks, filterByFETeam, teamBreakdown };
+module.exports = {
+  fetchMavericks,
+  fetchMavericksRange, // ✅ export this
+  filterByFETeam,
+  teamBreakdown,
+};

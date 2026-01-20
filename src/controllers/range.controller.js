@@ -43,6 +43,7 @@ exports.getFeAgentsRange = async (req, res) => {
     const records = await fetchMavericks({
       start_date,
       end_date: end_date || start_date,
+      chunkDays: 4,
     });
 
     const filtered = filterByFETeam(records, team);
@@ -80,6 +81,7 @@ exports.getSummaryRangeFe = async (req, res) => {
     const records = await fetchMavericks({
       start_date,
       end_date: end_date || start_date,
+      chunkDays: 4,
     });
 
     const filtered = filterByFETeam(records, team);
