@@ -11,12 +11,10 @@ if (!X_TEAM_KEY) throw new Error("Missing X_TEAM_KEY in .env");
    Date helpers
 ========================= */
 function toISODate(d) {
-  // expects Date
   return d.toISOString().slice(0, 10);
 }
 
 function parseISODate(s) {
-  // expects YYYY-MM-DD
   const d = new Date(`${s}T00:00:00Z`);
   if (Number.isNaN(d.getTime())) throw new Error(`Invalid date: ${s}`);
   return d;
@@ -36,9 +34,7 @@ function clampEnd(chunkEnd, end) {
    Single call to upstream
 ========================= */
 async function fetchMavericks({ start_date, end_date } = {}) {
-  if (!start_date) {
-    throw new Error("fetchMavericks: start_date is required");
-  }
+  if (!start_date) throw new Error("fetchMavericks: start_date is required");
 
   const payload = { start_date };
   if (end_date) payload.end_date = end_date;
@@ -51,43 +47,44 @@ async function fetchMavericks({ start_date, end_date } = {}) {
       Pragma: "no-cache",
     },
     timeout: 120000,
+    maxContentLength: Infinity,
+    maxBodyLength: Infinity,
   });
 
-  // ✅ support multiple possible response shapes
   const data = res.data;
   if (Array.isArray(data?.mavericks_data)) return data.mavericks_data;
   if (Array.isArray(data?.records)) return data.records;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data)) return data;
-
   return [];
 }
 
 /* =========================
-   Chunked range fetch
-   (avoids Render 502/timeouts)
+   STREAMING range fetch
+   - does NOT accumulate rows in memory
+   - calls onChunk(rows, meta) for each chunk
 ========================= */
-async function fetchMavericksRange({ start_date, end_date, chunkDays = 4 } = {}) {
-  if (!start_date) throw new Error("fetchMavericksRange: start_date is required");
+async function fetchMavericksRangeStream(
+  { start_date, end_date, chunkDays = 1, maxDays = 90 } = {},
+  onChunk
+) {
+  if (!start_date) throw new Error("fetchMavericksRangeStream: start_date is required");
+  if (typeof onChunk !== "function") throw new Error("fetchMavericksRangeStream: onChunk must be a function");
 
   const start = parseISODate(start_date);
   const end = parseISODate(end_date || start_date);
 
   if (end.getTime() < start.getTime()) {
-    throw new Error("fetchMavericksRange: end_date cannot be before start_date");
+    throw new Error("fetchMavericksRangeStream: end_date cannot be before start_date");
   }
 
-  // safety: avoid crazy range sizes on free tier
-  // (you can increase if you want, but keep some limit)
-  const maxDays = 60;
-  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const diffDays =
+    Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
   if (diffDays > maxDays) {
-    throw new Error(`fetchMavericksRange: range too large (${diffDays} days). Max is ${maxDays} days.`);
+    throw new Error(`Range too large (${diffDays} days). Max is ${maxDays} days.`);
   }
 
-  let all = [];
-
-  // iterate inclusive
   for (let d = new Date(start); d.getTime() <= end.getTime(); d = addDays(d, chunkDays)) {
     const chunkStart = new Date(d);
     const chunkEnd = clampEnd(addDays(chunkStart, chunkDays - 1), end);
@@ -97,10 +94,13 @@ async function fetchMavericksRange({ start_date, end_date, chunkDays = 4 } = {})
       end_date: toISODate(chunkEnd),
     });
 
-    all = all.concat(rows);
+    await onChunk(rows, {
+      chunkStart: toISODate(chunkStart),
+      chunkEnd: toISODate(chunkEnd),
+    });
   }
 
-  return all;
+  return { start_date, end_date: end_date || start_date };
 }
 
 /* =========================
@@ -121,18 +121,16 @@ function filterByFETeam(records, teamQuery) {
   });
 }
 
-function teamBreakdown(records) {
-  const counts = {};
-  for (const r of records || []) {
-    const t = String(r?.[FE_SALES_FIELD] || "Unknown").trim();
-    counts[t] = (counts[t] || 0) + 1;
-  }
-  return counts;
+function teamBreakdownFromCounts(counts) {
+  // ensure all FE teams exist
+  const out = {};
+  for (const t of ALLOWED_FE_TEAMS) out[t] = counts[t] || 0;
+  return out;
 }
 
 module.exports = {
   fetchMavericks,
-  fetchMavericksRange, // ✅ export this
+  fetchMavericksRangeStream, // ✅ streaming
   filterByFETeam,
-  teamBreakdown,
+  teamBreakdownFromCounts,
 };
