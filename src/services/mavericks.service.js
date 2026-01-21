@@ -127,10 +127,19 @@ function teamBreakdownFromCounts(counts) {
   for (const t of ALLOWED_FE_TEAMS) out[t] = counts[t] || 0;
   return out;
 }
+function teamBreakdown(records) {
+  const counts = {};
+  for (const r of records || []) {
+    const t = String(r?.[FE_SALES_FIELD] || "Unknown").trim();
+    counts[t] = (counts[t] || 0) + 1;
+  }
+  return counts;
+}
 
 module.exports = {
   fetchMavericks,
   fetchMavericksRangeStream, // ✅ streaming
   filterByFETeam,
   teamBreakdownFromCounts,
+  teamBreakdown
 };
