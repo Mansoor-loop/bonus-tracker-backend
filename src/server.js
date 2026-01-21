@@ -285,8 +285,9 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://bonus-tracker-zxda.onrender.com/"
+    "https://workbonustracker.onrender.com"
   ],
+  allowedHeaders: ["Content-Type", "x-admin-key"],
 }));
 app.use(express.json());
 
