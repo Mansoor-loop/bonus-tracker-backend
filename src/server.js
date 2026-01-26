@@ -280,6 +280,8 @@ const summaryRoutes = require("./routes/summary.routes");
 const refreshRoutes = require("./routes/refresh.routes");
 const bonusRoutes = require("./routes/bonus.routes");
 const rangeRoutes = require("./routes/range.routes");
+const queueRoutes = require("./routes/queue.routes")
+
 
 const app = express();
 app.use(cors({
@@ -303,6 +305,7 @@ app.use("/api/summary", summaryRoutes);
 app.use("/api/refresh", refreshRoutes);
 app.use("/api/bonus", bonusRoutes);
 app.use("/api/range", rangeRoutes);
+app.use("/api/queue", queueRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
