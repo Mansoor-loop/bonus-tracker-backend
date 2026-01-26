@@ -99,6 +99,8 @@ function subtract10Hours(dt) {
       team: pick(r, ["Team", "team", "FE Sales Team", "fe_sales_team"]),
       Validator: pick(r, ["Validator", "validator", "Closer Name", "closer_name", "Closer", "closer"]),
       processingStage: pick(r, ["Processing Stage", "processing_stage", "Lead Stage", "Stage", "stage"]),
+      closerStatus: pick(r, ["Closer Status", "closer_status", "Closer_Status", "CloserStatus"]),
+
     };
   }
 
