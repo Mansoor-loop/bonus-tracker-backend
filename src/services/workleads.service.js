@@ -100,9 +100,11 @@ function subtract10Hours(dt) {
       Validator: pick(r, ["Validator", "validator", "Closer Name", "closer_name", "Closer", "closer"]),
       processingStage: pick(r, ["Processing Stage", "processing_stage", "Lead Stage", "Stage", "stage"]),
       closerStatus: pick(r, ["Closer Status", "closer_status", "Closer_Status", "CloserStatus"]),
-
+      Feedback: pick(r,["Call Feedback"]),
+      Notes: pick(r,["Feedback Detail"]),
     };
   }
+
 
   return rows
     .filter((r) => {
