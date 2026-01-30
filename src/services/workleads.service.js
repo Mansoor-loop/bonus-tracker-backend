@@ -102,6 +102,7 @@ function subtract10Hours(dt) {
       closerStatus: pick(r, ["Closer Status", "closer_status", "Closer_Status", "CloserStatus"]),
       Feedback: pick(r,["Call Feedback"]),
       Notes: pick(r,["Feedback Detail"]),
+      CarrierPitch: pick(r,["Sale Carrier-P"])
     };
   }
 
