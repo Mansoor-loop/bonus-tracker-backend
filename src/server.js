@@ -282,7 +282,7 @@ const bonusRoutes = require("./routes/bonus.routes");
 const rangeRoutes = require("./routes/range.routes");
 const queueRoutes = require("./routes/queue.routes")
 const dialerRoutes = require("./routes/dialerRoutes");
-
+const dialerPushRoutes = require("./routes/dialerPush.routes");
 
 const app = express();
 app.use(cors({
@@ -308,6 +308,7 @@ app.use("/api/bonus", bonusRoutes);
 app.use("/api/range", rangeRoutes);
 app.use("/api/queue", queueRoutes);
 app.use("/api/dialer", dialerRoutes);
+app.use("/api/dialer", dialerPushRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
